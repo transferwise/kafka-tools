@@ -96,6 +96,7 @@ def is_dry_run(args):
 
 
 def main():
+
     # Start by loading all the modules
     action_map = get_module_map(kafka.tools.assigner.actions, kafka.tools.assigner.actions.ActionModule)
     sizer_map = get_module_map(kafka.tools.assigner.sizers, kafka.tools.assigner.sizers.SizerModule)
@@ -107,6 +108,8 @@ def main():
 
     tools_path = get_tools_path(args.tools_path)
     check_java_home()
+
+    time.sleep(args.pause)
 
     cluster = Cluster.create_from_zookeeper(args.zookeeper, getattr(args, 'default_retention', 1))
     run_plugins_at_step(plugins, 'set_cluster', cluster)
@@ -120,6 +123,7 @@ def main():
     newcluster = cluster.clone()
     action_to_run = action_map[args.action](args, newcluster)
     action_to_run.process_cluster()
+    time.sleep(args.pause)
     run_plugins_at_step(plugins, 'set_new_cluster', action_to_run.cluster)
     print_leadership("after", newcluster, args.leadership)
 
@@ -133,10 +137,12 @@ def main():
 
     for i, batch in enumerate(batches):
         log.info("Executing partition reassignment {0}/{1}: {2}".format(i + 1, len(batches), repr(batch)))
+        time.sleep(args.pause)
         batch.execute(i + 1, len(batches), args.zookeeper, tools_path, plugins, dry_run)
 
     run_plugins_at_step(plugins, 'before_ple')
 
+    time.sleep(args.pause)
     if not args.skip_ple:
         all_cluster_partitions = [p for p in action_to_run.cluster.partitions(args.exclude_topics)]
         batches = split_partitions_into_batches(all_cluster_partitions, batch_size=args.ple_size, use_class=ReplicaElection)

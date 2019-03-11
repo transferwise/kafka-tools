@@ -62,9 +62,10 @@ class Reassignment(BaseModel):
                                      '--reassignment-json-file', assignfile.name],
                                     stdout=FNULL, stderr=FNULL)
             proc.wait()
-
-            # Wait until finished
-            while True:
+            retries = 0
+            max_retries = 100
+            # Wait until finished or max retries
+            while retries < max_retries:
                 remaining_partitions = self.check_completion(zookeeper, tools_path, assignfile.name)
                 if remaining_partitions == 0:
                     break
@@ -74,7 +75,13 @@ class Reassignment(BaseModel):
                                                                                                                                  remaining_partitions,
                                                                                                                                  len(self.partitions),
                                                                                                                                  self.pause_time))
+                retries += 1
                 time.sleep(self.pause_time)
+
+            if retries == max_retries:
+                raise ReassignmentFailedException("Partition reassignment couldn't complete even with {0) attempts \n".format(max_retries))
+
+
 
     def process_verify_match(self, line):
         match_obj = self.status_re.match(line)
@@ -86,6 +93,8 @@ class Reassignment(BaseModel):
         return 0
 
     def check_completion(self, zookeeper, tools_path, assign_filename):
+
+        time.sleep(self.pause_time)
         FNULL = open(os.devnull, 'w')
         proc = subprocess.Popen(['{0}/kafka-reassign-partitions.sh'.format(tools_path), '--verify',
                                  '--zookeeper', zookeeper,
