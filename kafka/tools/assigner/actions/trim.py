@@ -50,5 +50,5 @@ class ActionTrim(ActionModule):
             partition.remove_lw_replica(lw_broker_replicas)
             if len(partition.replicas) < 3:
                 raise NotEnoughReplicasException(
-                    "Cannot trim {0}:{1} as it would result in an empty replica list".format(
+                    "Cannot trim {0}:{1} as it would result in an less than intended replica count".format(
                         partition.topic.name, partition.num))
