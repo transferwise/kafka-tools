@@ -15,38 +15,40 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from kafka.tools import log
 from kafka.tools.assigner.actions import ActionModule
 from kafka.tools.exceptions import NotEnoughReplicasException
+from kafka.tools.exceptions import ConfigurationException
 
 
 class ActionTrim(ActionModule):
     name = "trim"
-    helpstr = "Remove partitions from some brokers (reducing RF)"
+    helpstr = "Remove partition replica from some broker in LeaseWeb (reducing RF)"
 
     def __init__(self, args, cluster):
         super(ActionTrim, self).__init__(args, cluster)
 
-        self.check_brokers(type_str="Brokers to remove")
-        self.brokers = args.brokers
+        self.from_lw_brokers = args.remove_from_lw_brokers
+        for from_lw_broker in self.from_lw_brokers:
+            if self.cluster.brokers[from_lw_broker] is None:
+                raise ConfigurationException("LW broker specified is not in the brokers list for this cluster")
 
     @classmethod
     def _add_args(cls, parser):
-        parser.add_argument('-b', '--brokers', help="List of broker IDs to remove", required=True, type=int, nargs='*')
+        # for our requirement, this is expected to be brokers in LW
+        parser.add_argument('-d', '--remove_from_lw_brokers', help="List of  lw broker ids to trim replicas from",
+                            required=True, type=int,
+                            nargs='*')
+
+        parser.add_argument('-t', '--topics', help='List of topics to run the trim action',
+                            required=True, nargs='*')
 
     def process_cluster(self):
-        # For each broker specified, remove it from the replica list for all its partitions
-        for broker_id in self.brokers:
-            broker = self.cluster.brokers[broker_id]
-            for position in broker.partitions:
-                partition_list = broker.partitions[position][:]
-                for partition in partition_list:
-                    self._process_partition(broker, partition)
-
-    def _process_partition(self, broker, partition):
-        if partition.topic.name in self.args.exclude_topics:
-            return
-
-        partition.remove_replica(broker)
-        if len(partition.replicas) < 1:
-            raise NotEnoughReplicasException("Cannot trim {0}:{1} as it would result in an empty replica list".format(
-                partition.topic.name, partition.num))
+        for partition in self.cluster.partitions_for(self.args.topics):
+            log.info("lw replica trimming starting for partition num {0} of topic {1}".format(partition.num, partition.topic.name))
+            lw_broker_replicas = self.cluster.get_replicas_for(partition, self.from_lw_brokers)
+            partition.remove_lw_replica(lw_broker_replicas)
+            if len(partition.replicas) < 1:
+                raise NotEnoughReplicasException(
+                    "Cannot trim {0}:{1} as it would result in an empty replica list".format(
+                        partition.topic.name, partition.num))

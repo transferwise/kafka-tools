@@ -16,7 +16,7 @@
 # under the License.
 
 from __future__ import division
-
+from kafka.tools import log
 from kafka.tools.exceptions import ReplicaNotFoundException
 from kafka.tools.models import BaseModel
 
@@ -71,6 +71,34 @@ class Partition(BaseModel):
 
         broker.partitions[position].remove(self)
         self.replicas.remove(broker)
+
+    def add_aws_replica(self, broker):
+        self.add_replica(broker)
+        log.info("added aws replica for partition num {0} of topic {1} on broker {2}".format(self.num, self.topic.name, broker.id))
+
+    def remove_lw_replica(self, lw_broker_replicas):
+        # IMP: remove the last element as broker.partitions indexing scheme could break otherwise
+        if lw_broker_replicas:
+            self._remove_lw_replica(lw_broker_replicas[-1])
+        else:
+            print("no lw replicas for partition num {0} of topic {1} left to be removed".format(self.num, self.topic.name))
+
+    # remove lw replica on input broker (assume lw_broker has a replica for this partition)
+    def _remove_lw_replica(self, lw_broker):
+        log.info("removing lw replica now")
+        self.replicas.remove(lw_broker)
+        # if no partition has more than one replica on broker, then keys would have only one element,
+        keys = list(lw_broker.partitions.keys())
+        # otherwise update highest number keyed list
+        keys.reverse()
+        for key in keys:
+            for partition in lw_broker.partitions[key]:
+                if partition.num == self.num and partition.topic == self.topic:
+                    log.info("updating broker object with id {0} and replica list key {1} ".format(lw_broker.id, key))
+                    lw_broker.partitions[key].remove(self)
+                    log.info("remove lw replica done")
+                    return
+
 
     def delete_replicas(self, target_count):
         """

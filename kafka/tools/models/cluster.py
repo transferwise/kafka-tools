@@ -142,15 +142,15 @@ class Cluster(BaseModel):
             for partition in self.topics[topic].partitions:
                 yield partition
 
-    # NOTE - need to change this method to accept source brokers also and return partitions where only source brokers are leaders
     def partitions_for(self, include_topics=[]):
         partitions = []
+        log.info("checking partitions for {0}".format(include_topics))
         for topic in include_topics:
             log.debug("Including topic {0}".format(topic))
             for partition in self.topics[topic].partitions:
                 partitions.append(partition)
 
-        return partitions
+        return set(partitions)
 
     def num_brokers(self):
         return len(self.brokers)
@@ -167,6 +167,23 @@ class Cluster(BaseModel):
             if broker_max_pos > max_pos:
                 max_pos = broker_max_pos
         return max_pos + 1
+
+    # get replicas for this partition in the input broker_list
+    def get_replicas_for(self, partition, broker_list):
+        replica_brokers = []
+        for broker_id in broker_list:
+            broker = self.brokers[broker_id]
+            try:
+                pos = partition.replicas.index(broker)
+                log.info(" broker_id {0} at pos {1} for topic {2} and partition num {3}".format(broker_id, pos, partition.topic.name, partition.num))
+                replica_brokers.append(broker)
+            except ValueError:
+                pass
+            except:
+                log.info("some unknown error in checking partition replica for partition num {0} of topic {1} on broker {2}".format(partition.num, partition.topic.name, broker_id))
+                pass
+
+        return replica_brokers
 
     def changed_partitions(self, newcluster):
         moves = []
