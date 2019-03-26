@@ -90,7 +90,7 @@ class Partition(BaseModel):
         # if no partition has more than one replica on broker, then keys would have only one element,
         keys = list(lw_broker.partitions.keys())
         # otherwise update highest number keyed list
-        keys.reverse()
+        keys.sort(reverse=True)
         for key in keys:
             for partition in lw_broker.partitions[key]:
                 if partition.num == self.num and partition.topic == self.topic:
