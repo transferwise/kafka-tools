@@ -48,7 +48,7 @@ class ActionTrim(ActionModule):
             log.info("lw replica trimming starting for partition num {0} of topic {1}".format(partition.num, partition.topic.name))
             lw_broker_replicas = self.cluster.get_replicas_for(partition, self.from_lw_brokers)
             partition.remove_lw_replica(lw_broker_replicas)
-            if len(partition.replicas) < 1:
+            if len(partition.replicas) < 3:
                 raise NotEnoughReplicasException(
                     "Cannot trim {0}:{1} as it would result in an empty replica list".format(
                         partition.topic.name, partition.num))
