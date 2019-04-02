@@ -28,6 +28,34 @@ Code structure: The original kafka-tools project allows us to bring about change
 Custom actions: We have modified actions and some core classes to achieve the objective (above)
 
 
+Driver script
+-------------
+The driver script will be used by simply executing :code:`migrate_to_aws.sh`. It will work as follows
+
+We will create a special topic called *topics_migrated* and initially it won't contain any topics.
+
+The script won't have any assumptions about the start state, it could be that all topics need to be migrated and it could be that everything is migrated already.
+
+Script will do two following ...
+
+1. Get the list of all topics in kafka cluster
+2. Get the list of topics migrated from *topics_migrated* topic
+
+Subtracting 2 from 1, we will get the list of topics yet to be migrated and script will migrate the topics one by one and with each migrate write the topic name as a message to *topics_migrated* topic
+
+The topics will be migrated using the actions described in further sections
+
+We can migrate all topics list received with (2-1) at once but to limit the data migration per day/per invocation etc., we will migrate only a limited number of topics each day and run script over multiple days to migrate all topics
+
+Even if the script processes same topic twice due to some failures/issues, there's no side-effects as it would just result in a no-op (no state change in cluster for that topic)
+
+Once the list of topics in 1 and 2 are same, (2-1) will return an empty list and we can expect all topics have been safely migrated in AWS and we can look to retire LW brokers after that.
+
+Once all LW brokers are retired, the script execution/schedule will be stopped and it can be retired safely.
+
+As a last cleanup step, we can also delete *topics_migrated* topic from the cluster
+
+
 Description for the actions
 ---------------------------
 
@@ -54,6 +82,7 @@ Describing the topic might look something like this
 
 :code:`./kafka-topics.sh --zookeeper kafka1.tw.ee:2181,kafka2.tw.ee:2181,kafka3.tw.ee:2181 --describe --topic kafka-test`
 
+::
 Topic:kafka-test	PartitionCount:6	ReplicationFactor:3	Configs:
 	Topic: kafka-test	Partition: 0	Leader: 6	Replicas: 6,7,8	Isr: 6,7,8
 	Topic: kafka-test	Partition: 1	Leader: 7	Replicas: 7,8,1001	Isr: 7,8,1001
@@ -72,6 +101,7 @@ We will first run the clone action to migrate leadership to AWS
 
 After running the clone action, the topic describe might look something like this, notice all partitions leaders are now AWS brokers. Also the step might end up having 3 or 4 replicas for a partition
 
+::
 Topic:kafka-test	PartitionCount:6	ReplicationFactor:4	Configs:
 	Topic: kafka-test	Partition: 0	Leader: 1002	Replicas: 1002,6,7,8	Isr: 6,7,8,1002
 	Topic: kafka-test	Partition: 1	Leader: 1003	Replicas: 1003,7,8,1001	Isr: 7,8,1001,1003
