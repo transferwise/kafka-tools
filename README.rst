@@ -82,7 +82,6 @@ Describing the topic might look something like this
 
 :code:`./kafka-topics.sh --zookeeper kafka1.tw.ee:2181,kafka2.tw.ee:2181,kafka3.tw.ee:2181 --describe --topic kafka-test`
 
-::
 Topic:kafka-test	PartitionCount:6	ReplicationFactor:3	Configs:
 	Topic: kafka-test	Partition: 0	Leader: 6	Replicas: 6,7,8	Isr: 6,7,8
 	Topic: kafka-test	Partition: 1	Leader: 7	Replicas: 7,8,1001	Isr: 7,8,1001
@@ -101,7 +100,6 @@ We will first run the clone action to migrate leadership to AWS
 
 After running the clone action, the topic describe might look something like this, notice all partitions leaders are now AWS brokers. Also the step might end up having 3 or 4 replicas for a partition
 
-::
 Topic:kafka-test	PartitionCount:6	ReplicationFactor:4	Configs:
 	Topic: kafka-test	Partition: 0	Leader: 1002	Replicas: 1002,6,7,8	Isr: 6,7,8,1002
 	Topic: kafka-test	Partition: 1	Leader: 1003	Replicas: 1003,7,8,1001	Isr: 7,8,1001,1003
